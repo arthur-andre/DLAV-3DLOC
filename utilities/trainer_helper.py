@@ -92,10 +92,17 @@ class Trainer(object):
             inputs = inputs.to(self.device)
             for key in targets.keys():
                 targets[key] = targets[key].to(self.device)
+            if batch_idx == 0:
+                print("voici input :")
+                print(targets['heatmap'].shape, targets['offset_2d'].shape, targets['size_2d'].shape, targets['depth'].shape, targets['offset_3d'].shape, targets['size_3d'].shape)
 
             # train one batch
             self.optimizer.zero_grad()
             outputs = self.model(inputs)
+            if batch_idx == 0:
+                print("voici output :")
+                print(outputs['heatmap'].shape, outputs['offset_2d'].shape, outputs['size_2d'].shape, outputs['depth'].shape, outputs['offset_3d'].shape, outputs['size_3d'].shape, outputs['heading'].shape)
+                print(outputs['size_3d'])
             total_loss, stats_batch = compute_centernet3d_loss(outputs, targets)
             total_loss.backward()
             self.optimizer.step()

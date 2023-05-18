@@ -30,7 +30,7 @@ def save_checkpoint(state, filename):
 
 def load_checkpoint(model, optimizer, map_location, logger=None):
 
-    path = '/Users/strom/Documents/GitHub/monodle/experiments/example/checkpoints/checkpoint_epoch_140.pth'
+    path = '/Users/strom/Desktop/monodle/utilities/checkpoints/checkpoint_epoch_140.pth'
     checkpoint = torch.load(path, map_location)
     epoch = checkpoint.get('epoch', -1)
     if model is not None and checkpoint['model_state'] is not None:
