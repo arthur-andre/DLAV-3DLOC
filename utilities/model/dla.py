@@ -290,15 +290,25 @@ class DLA(nn.Module):
 
             return x
 
-    def load_pretrained_model(self, data='imagenet', name='dla34', hash='ba72cf86'):
+    def load_pretrained_model(self, data='imagenet', name='dla34', hash='ba72cf86', ddad15m= False):
         fc = self.fc
-        path = '/Users/strom/Desktop/dla34-ba72cf86.pth'
-        model_weights = torch.load(path)
+        if (ddad15m):
+            path = '/Users/strom/Desktop/depth_pretrained_dla34-2lnfuzr1.pth'
+            model_weights = torch.load(path)
+            test = {}
+            for previous_name in model_weights['model'].keys():
+                previous = previous_name
+                new_name = previous_name.replace("backbone.model.", "")
+                test[new_name] = model_weights['model'][previous]
+            model_weights=test
+        else:
+            path = '/Users/strom/Desktop/dla34-ba72cf86.pth'
+            model_weights = torch.load(path)
         num_classes = len(model_weights[list(model_weights.keys())[-1]])
         self.fc = nn.Conv2d(
             self.channels[-1], num_classes,
             kernel_size=1, stride=1, padding=0, bias=True)
-        self.load_state_dict(model_weights)
+        self.load_state_dict(model_weights, strict=False)
         self.fc = fc
 
 

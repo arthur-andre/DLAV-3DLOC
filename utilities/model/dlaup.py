@@ -1,5 +1,6 @@
 import os, sys
 import math
+import torch.nn.functional as F
 
 #BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 #ROOT_DIR = os.path.dirname(os.path.dirname(BASE_DIR))
@@ -119,6 +120,38 @@ def fill_up_weights(up):
         w[c, 0, :, :] = w[0, 0, :, :]
 
 
+class FPN(nn.Module):
+    def __init__(self, in_channels_list, out_channels):
+        super(FPN, self).__init__()
+        self.in_channels_list = in_channels_list
+        self.out_channels = out_channels
+
+        self.lateral_convs = nn.ModuleList()
+        self.output_convs = nn.ModuleList()
+
+        for in_channels in in_channels_list:
+            lateral_conv = nn.Conv2d(in_channels, out_channels, kernel_size=1)
+            output_conv = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1)
+            self.lateral_convs.append(lateral_conv)
+            self.output_convs.append(output_conv)
+
+    def forward(self, input):
+        # Bottom-up pathway
+        input = input[::-1]
+
+        # Top-down pathway
+        features = [self.lateral_convs[0](input[0])]
+        for i in range(1, len(input)):
+            lateral = self.lateral_convs[i](input[i])
+            upsampled = F.interpolate(features[-1], scale_factor=2, mode='nearest')
+            features.append(lateral + upsampled)
+
+        # Output pathway
+        outputs = [self.output_convs[i](features[i]) for i in range(len(features))]
+
+        return outputs
+
+
 if __name__ == '__main__':
     from dla import dla34
     backbone = dla34(return_levels=True)
@@ -141,4 +174,7 @@ if __name__ == '__main__':
     features_up = dlaup(features[start_level:])
     print('shape of upsampled feature maps', features_up.shape)
 
+    Fpn = FPN(in_channels_list=channels[start_level:-1], out_channels=256)  # Adjust the in_channels_list
+    features_up2 = Fpn(features[start_level:])
+    print('shape of upsampled feature maps 2', features_up2.shape)
 

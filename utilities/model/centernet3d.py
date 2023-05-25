@@ -6,6 +6,8 @@ import numpy as np
 
 from utilities.model import dla
 from utilities.model.dlaup import DLAUp
+from utilities.model.dlaup import FPN
+
 
 
 
@@ -27,6 +29,7 @@ class CenterNet3D(nn.Module):
         self.first_level = int(np.log2(downsample))
         scales = [2 ** i for i in range(len(channels[self.first_level:]))]
         self.neck = DLAUp(channels[self.first_level:], scales_list=scales)   # feature fusion [such as DLAup, FPN]
+        #self.neck = FPN(channels[self.first_level:], out_channels=256)
 
         # initialize the head of pipeline, according to heads setting.
         for head in self.heads.keys():

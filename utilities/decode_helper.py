@@ -66,6 +66,50 @@ def decode_detections(dets, info, calibs, cls_mean_size, threshold):
         results[info['img_id'][i]] = preds
     return results
 
+import torch
+
+def decode_detections_loss(dets, info, calibs, cls_mean_size, threshold, count):
+    '''
+    input: dets, numpy array, shape in [batch x max_dets x dim]
+    input: img_info, dict, necessary information of input images
+    input: calibs, corresponding calibs for the input batch
+    output:
+    '''
+    cumul = 0
+    #print("count",count)
+    preds = []
+    for i in range(len(count)):  # batch
+        for j in range(count[i]):  # max_dets
+            cls_id = int(dets[cumul + j, 0])
+            score = 0
+            # depth decoding
+            depth = dets[cumul + j, 6]
+            # dimensions decoding
+            dimensions = dets[cumul + j, 31:34]
+            add = torch.ones(3).to("cuda:0")
+            cls_mean_size_tensor = torch.from_numpy(cls_mean_size[int(cls_id)]).cuda().float()
+
+            # Assign the values to add
+            add[0] = cls_mean_size_tensor[0]
+            add[1] = cls_mean_size_tensor[1]
+            add[2] = cls_mean_size_tensor[2]
+            dimensions = dimensions + add
+
+
+            # positions decoding
+            x3d = dets[cumul + j, 34] * info['bbox_downsample_ratio'][i][0]
+            y3d = dets[cumul + j, 35] * info['bbox_downsample_ratio'][i][1]
+            locations = calibs[i].img_to_rect_grad(x3d, y3d, depth)
+            locations[1] += dimensions[0] / 2
+            # heading angle decoding
+            alpha = get_heading_angle_grad(dets[cumul + j, 7:31])
+            ry = 0
+
+            preds.append([alpha,dimensions,locations])
+        cumul += int(count[i])
+        
+    return preds
+
 
 def extract_dets_from_outputs(outputs, K=50):
     # get src outputs
@@ -81,7 +125,6 @@ def extract_dets_from_outputs(outputs, K=50):
     heatmap= torch.clamp(heatmap.sigmoid_(), min=1e-4, max=1 - 1e-4)
     depth = 1. / (depth.sigmoid() + 1e-6) - 1.
     sigma = torch.exp(-sigma)
-
     batch, channel, height, width = heatmap.size() # get shape
 
     # perform nms on heatmaps
@@ -97,6 +140,8 @@ def extract_dets_from_outputs(outputs, K=50):
     offset_3d = offset_3d.view(batch, K, 2)
     xs3d = xs.view(batch, K, 1) + offset_3d[:, :, 0:1]
     ys3d = ys.view(batch, K, 1) + offset_3d[:, :, 1:2]
+    #print("xs3d",xs3d)
+    #print("ys3d",ys3d)
 
     heading = _transpose_and_gather_feat(heading, inds)
     heading = heading.view(batch, K, 24)
@@ -150,6 +195,8 @@ def _topk(heatmap, K=50):
     topk_inds = _gather_feat(topk_inds.view(batch, -1, 1), topk_ind).view(batch, K)
     topk_ys = _gather_feat(topk_ys.view(batch, -1, 1), topk_ind).view(batch, K)
     topk_xs = _gather_feat(topk_xs.view(batch, -1, 1), topk_ind).view(batch, K)
+    #print("topk_ys",topk_ys)
+    #print("topk_xs",topk_xs)
 
     return topk_score, topk_inds, topk_cls_ids, topk_xs, topk_ys
 
@@ -189,6 +236,12 @@ def _transpose_and_gather_feat(feat, ind):
 def get_heading_angle(heading):
     heading_bin, heading_res = heading[0:12], heading[12:24]
     cls = np.argmax(heading_bin)
+    res = heading_res[cls]
+    return class2angle(cls, res, to_label_format=True)
+
+def get_heading_angle_grad(heading):
+    heading_bin, heading_res = heading[0:12], heading[12:24]
+    cls = torch.argmax(heading_bin).item()
     res = heading_res[cls]
     return class2angle(cls, res, to_label_format=True)
 

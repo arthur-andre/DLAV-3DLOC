@@ -209,6 +209,18 @@ class Calibration(object):
         y = ((v - self.cv) * depth_rect) / self.fv + self.ty
         pts_rect = np.concatenate((x.reshape(-1, 1), y.reshape(-1, 1), depth_rect.reshape(-1, 1)), axis=1)
         return pts_rect
+    
+    def img_to_rect_grad(self, u, v, depth_rect):
+        """
+        :param u: (N)
+        :param v: (N)
+        :param depth_rect: (N)
+        :return:
+        """
+        x = ((u - self.cu) * depth_rect) / self.fu + self.tx
+        y = ((v - self.cv) * depth_rect) / self.fv + self.ty
+        pts_rect = [x, y,depth_rect]
+        return pts_rect
 
     def depthmap_to_rect(self, depth_map):
         """

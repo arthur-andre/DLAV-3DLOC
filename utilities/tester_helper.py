@@ -1,7 +1,8 @@
 import os
 import tqdm
-
+import matplotlib.pyplot as plt
 import torch
+import numpy as np
 
 from utilities.save_helper import load_checkpoint
 from utilities.decode_helper import extract_dets_from_outputs
@@ -46,13 +47,13 @@ class Tester(object):
 
         results = {}
         progress_bar = tqdm.tqdm(total=len(self.dataloader), leave=True, desc='Evaluation Progress')
-        for batch_idx, (inputs, _, info) in enumerate(self.dataloader):
+        for batch_idx, (inputs, target, info) in enumerate(self.dataloader):
             # load evaluation data and move data to GPU.
             inputs = inputs.to(self.device)
             outputs = self.model(inputs)
             dets = extract_dets_from_outputs(outputs=outputs, K=self.max_objs)
             dets = dets.detach().cpu().numpy()
-
+    
             # get corresponding calibs & transform tensor to numpy
             calibs = [self.dataloader.dataset.get_calib(index)  for index in info['img_id']]
             info = {key: val.detach().cpu().numpy() for key, val in info.items()}

@@ -187,6 +187,12 @@ class KITTI_Dataset(data.Dataset):
         indices = np.zeros((self.max_objs), dtype=np.int64)
         mask_2d = np.zeros((self.max_objs), dtype=np.uint8)
         mask_3d = np.zeros((self.max_objs), dtype=np.uint8)
+        mask_3d_iou = np.zeros((self.max_objs), dtype=np.uint8)
+        center_box_3D = np.zeros((self.max_objs, 3), dtype=np.float32)
+        center_box_2D = np.zeros((self.max_objs, 2), dtype=np.float32)
+        h_w_l = np.zeros((self.max_objs, 3), dtype=np.float32)
+        yaw = np.zeros((self.max_objs, 1), dtype=np.float32)
+        cls_type = np.zeros((self.max_objs, 1), dtype=np.float32)
         object_num = len(objects) if len(objects) < self.max_objs else self.max_objs
         for i in range(object_num):
             # filter objects by writelist
@@ -201,10 +207,15 @@ class KITTI_Dataset(data.Dataset):
             threshold = 65
             if objects[i].pos[-1] > threshold:
                 continue
+            
+            if objects[i].cls_type in ['Pedestrian', 'Car', 'Cyclist']:
+                cls_type[i] = self.cls2id[objects[i].cls_type]
+            else:   
+                cls_type[i] = 1
 
             # process 2d bbox & get 2d center
             bbox_2d = objects[i].box2d.copy()
-
+            
             # add affine transformation for 2d boxes.
             bbox_2d[:2] = affine_transform(bbox_2d[:2], trans)
             bbox_2d[2:] = affine_transform(bbox_2d[2:], trans)
@@ -213,12 +224,16 @@ class KITTI_Dataset(data.Dataset):
 
             # process 3d bbox & get 3d center
             center_2d = np.array([(bbox_2d[0] + bbox_2d[2]) / 2, (bbox_2d[1] + bbox_2d[3]) / 2], dtype=np.float32)  # W * H
+            center_box_2D[i] = center_2d
+            center_box_3D[i] = objects[i].pos
             center_3d = objects[i].pos + [0, -objects[i].h / 2, 0]  # real 3D center in 3D space
             center_3d = center_3d.reshape(-1, 3)  # shape adjustment (N, 3)
             center_3d, _ = calib.rect_to_img(center_3d)  # project 3D center to image plane
             center_3d = center_3d[0]  # shape adjustment
             if random_flip_flag:  # random flip for center3d
                 center_3d[0] = img_size[0] - center_3d[0]
+                center_box_3D[i][0]= -center_box_3D[i][0]
+
             center_3d = affine_transform(center_3d.reshape(-1), trans)
             center_3d /= self.downsample
 
@@ -249,6 +264,7 @@ class KITTI_Dataset(data.Dataset):
 
             # encoding heading angle
             heading_angle = objects[i].alpha
+            yaw[i] = heading_angle
             heading_bin[i], heading_res[i] = angle2class(heading_angle)
 
             # encoding 3d offset & size_3d
@@ -259,6 +275,11 @@ class KITTI_Dataset(data.Dataset):
 
             mask_2d[i] = 1
             mask_3d[i] = 0 if random_crop_flag else 1
+            mask_3d_iou[i] = 0 if random_crop_flag else (0 if random_flip_flag else 1)
+
+            h_w_l[i] = np.array([objects[i].h, objects[i].w, objects[i].l], dtype=np.float32)
+
+            
 
 
         # collect return data
@@ -274,7 +295,12 @@ class KITTI_Dataset(data.Dataset):
                    'heading_bin': heading_bin,
                    'heading_res': heading_res,
                    'mask_2d': mask_2d,
-                   'mask_3d': mask_3d}
+                   'mask_3d': mask_3d,
+                   'center_box_3D': center_box_3D,
+                   'center_box_2D': center_box_2D,
+                   'h_w_l': h_w_l,
+                   'yaw': yaw,
+                   'cls_type': cls_type}
         info = {'img_id': index,
                 'img_size': img_size,
                 'bbox_downsample_ratio': img_size/features_size}
