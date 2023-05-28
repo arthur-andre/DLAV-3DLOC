@@ -174,8 +174,8 @@ def iou_3d_loss(input, target, calibs=None, cls_mean_size=None, info=None, max_o
 
     if len(dets) != 0:
         for i, (size, center, yaw) in enumerate(zip(target_size_3D, target_center_3D, target_yaw)):
-            box_pred = [dets[i][2][0],dets[i][2][1],dets[i][2][2],dets[i][1][0],dets[i][1][1],dets[i][1][2],dets[i][0]]
-            box_gt = [center[0],center[1],center[2],size[0],size[1],size[2],yaw[0]]
+            box_pred = [dets[i][2][0],dets[i][2][1],dets[i][2][2],dets[i][1][0],dets[i][1][1],dets[i][1][2],dets[i][0]] #x,y,z,w,l,h,yaw
+            box_gt = [center[0],center[1],center[2],size[0],size[1],size[2],yaw[0]] #x,y,z,w,l,h,yaw
 
             corners1 = get_box_corners(box_pred)
             corners2 = get_box_corners(box_gt)
@@ -186,7 +186,7 @@ def iou_3d_loss(input, target, calibs=None, cls_mean_size=None, info=None, max_o
             
             union_volume = box1_volume + box2_volume - intersection_volume
             iou = intersection_volume / union_volume
-            iou_loss += torch.ones((1,)).to(device) - iou
+            iou_loss += torch.ones((1,)).to(device) - iou #added terms
 
     if len(dets) != 0:
         iou_loss = iou_loss / len(dets)

@@ -32,6 +32,8 @@ def load_checkpoint(model, optimizer, map_location, logger=None):
 
     path = '/Users/strom/Desktop/monodle/utilities/checkpoints/checkpoint_epoch_140.pth'
     path = '/Users/strom/Desktop/checkpoint_epoch_140_dd3d.pth'
+    path = '/Users/strom/Desktop/IoU/checkpoint_epoch_120.pth'
+    path = '/Users/strom/Desktop/monodle/withiouloss/checkpoint_epoch_140.pth'
     
     #path = '/Users/strom/Desktop/monodle/checkpoints/checkpoint_epoch_70.pth'
     checkpoint = torch.load(path, map_location)
