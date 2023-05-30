@@ -7,10 +7,15 @@ In this project, we aim to train a model to perform 3D car detection from RGB im
 xxx: gif de notre algo qui fonctionne. 
 
 ## Contributions
-From the paper "Delving into Localization Errors for Monocular 3D Object Detection,  after conducting diagnostic experiments, the research team deduced that the greatest potential for performance improvement lies in the fields of localization and 3d prediction. 
+From the paper "Investigating Localization Errors in Monocular 3D Object Detection," following diagnostic experiments, the research team inferred that the most significant potential for performance enhancement lies within the realms of localization and 3D prediction.
 
-We wanted to continue in this direction, exploring several possibilities. 
+xxx: Incorporate curves with ground truth components.
 
+We aimed to pursue this direction further, exploring multiple possibilities:
+
+Our primary objective involved improving depth prediction, a major challenge faced by 3D detection models without LiDAR. Furthermore, based on the curve in Figure 1, there is a notable potential increase in Average Precision (AP) score from the baseline to achieving perfect depth prediction. In "DD3D: Is Pseudo-Lidar essential for Monocular 3D Object Detection?", employing pre-trained models on a large-scale depth LiDAR dataset resulted in enhanced localization performance (xxx provide more details). Specifically, we utilized a DLA-34 backbone pretrained through self-supervised learning on the DDAD15 dataset (**https://github.com/TRI-ML/DDAD**). Initially, the backbone was pretrained on ImageNet, augmenting the model's classification ability. Our objective is to provide depth mapping to the neck and head of our model.
+
+Our secondary objective focused on enhancing localization prediction. Notably, from the curve in xxx, we observed that the largest potential improvement in AP score lies in localization performance. Upon analyzing our model, we discovered that the 3D loss solely captured its dimensions, without considering factors such as intersection over union (IOU). After implementing ourselves a simple IOU, we identified the presence of noise in our loss function and addressed it by introducing a distance notion to attract predicted boxes towards the ground truth boxes. To ensure well-shaped boxes, we also incorporated an aspect loss along with the IOU loss. To gain a better understanding of the impact of each loss function, we plotted loss curves and obtained corresponding scores to demonstrate the utility of each loss.
 
 ## Experimental Setup
 
