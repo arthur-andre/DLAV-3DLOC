@@ -131,6 +131,7 @@ Please download [KITTI dataset](http://www.cvlibs.net/datasets/kitti/eval_object
                 |scene1/
 ```
 
+We added a possibility to run inference on the first scene provided by the DLAV course under the following [Google Drive](https://drive.google.com/drive/folders/1-WVPavDi5hOowTBXhGHpmOFbjKFdBVhi?usp=sharing)
 
 
 ## Results
