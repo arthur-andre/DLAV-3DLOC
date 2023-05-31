@@ -42,14 +42,14 @@ Upon analyzing our model, we discovered that the 3D loss solely captured its dim
 After implementing ourselves a simple IOU, we identified the presence of noise in our loss function and addressed it by introducing a distance notion to attract predicted boxes towards the ground truth boxes.
 To ensure well-shaped boxes, we also incorporated an aspect loss along with the IOU loss. 
 To gain a better understanding of the impact of each loss function, we plotted loss curves and obtained corresponding scores to demonstrate the utility of each loss.
-
+The different IOU losses are detailed in the https://arxiv.org/pdf/2005.03572.pdf paper. 
 
 ## Experimental Setup
 - First, we tested the baseline model from the paper in order to retrieve the scores on the same validation set.
 - Then, we loaded the depth pre-trained weights in the DLA-34 backbone, re-trained on the kitti dataset and observed the results.
 - We also implemented the IOU loss and noted that the loss was noisy and was not going down.
 - We suggested that adding a distance notion (IOU->DIOU) would add slope to the loss and enhance training.
-- We tried to outperform this new DIOU loss by adding an aspect loss, penalising the box dimensions prediction error only if the IOU>0,5. 
+- We tried to outperform this new DIOU loss by adding an aspect loss (DIOU->GIOU), penalising the box dimensions prediction error only if the IOU>0,5. 
 
 ## Dataset details
 The 3D object detection benchmark consists of 7481 training images and 7518 test images, comprising a total of 80.256 labeled objects. 
