@@ -35,18 +35,58 @@ Our primary objective involved improving depth prediction, a major challenge fac
 Our secondary objective focused on enhancing localization prediction. Notably, from the curve in xxx, we observed that the largest potential improvement in AP score lies in localization performance. Upon analyzing our model, we discovered that the 3D loss solely captured its dimensions, without considering factors such as intersection over union (IOU). After implementing ourselves a simple IOU, we identified the presence of noise in our loss function and addressed it by introducing a distance notion to attract predicted boxes towards the ground truth boxes. To ensure well-shaped boxes, we also incorporated an aspect loss along with the IOU loss. To gain a better understanding of the impact of each loss function, we plotted loss curves and obtained corresponding scores to demonstrate the utility of each loss.
 
 ## Dataset details
-dataset details..
+The 3D object detection benchmark consists of 7481 training images and 7518 test images, comprising a total of 80.256 labeled objects. 
+Training RGB images are paired with label txt files
 
 ## Experimental Setup
-first install...
+- First, we tested the baseline model from the paper in order to retrieve the scores on the same validation set.
+- Then, we loaded the depth pre-trained weights in the DLA-34 backbone, re-trained on the kitti dataset and observed the results.
+- We also implemented the IOU loss and noted that the loss was noisy and was not going down.
+- We suggested that adding a distance notion (IOU->DIOU) would add slope to the loss and enhance training.
+- We tried to outperform this new DIOU loss by adding an aspect loss, penalising the box dimensions prediction error only if the IOU>0,5. 
 
 ## How to use
-To run this project, you will need the following dependencies:
+### Environment setup
+This repo is tested on our local environment (python=3.7.7, cuda=11.1, pytorch=1.13), and we recommend you to use anaconda to create a virtual environment:
+Adapt python version, and pytorch installation version depending on your cuda version. Check with `nvidia-smi`. 
 
-- Dependency 1
-- Dependency 2
-- ...
+```bash
+conda create -n monodle python=3.7.7
+```
+Then, activate the environment:
+```bash
+conda activate monodle
+```
 
+Install  Install PyTorch (1.10.1 in our case):
+
+```bash
+pip install torch==1.10.1+cu111 torchvision==0.11.2+cu111 torchaudio==0.10.1 -f https://download.pytorch.org/whl/cu111/torch_stable.html
+```
+
+and other  requirements:
+```bash
+pip install -r requirements.txt
+```
+Please note
+
+### Dataset Location
+Please download [KITTI dataset](http://www.cvlibs.net/datasets/kitti/eval_object.php?obj_benchmark=3d) and organize the data as follows:
+
+```
+#ROOT
+  |data/
+    |KITTI/
+      |ImageSets/ [already provided in this repo]
+      |object/			
+        |training/
+          |calib/
+          |image_2/
+          |label/
+        |testing/
+          |calib/
+          |image_2/
+```
 
 
 ## Results
