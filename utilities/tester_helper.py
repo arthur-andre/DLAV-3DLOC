@@ -33,7 +33,8 @@ class Tester(object):
             load_checkpoint(model=self.model,
                             optimizer=None,
                             map_location=self.device,
-                            logger=self.logger)
+                            logger=self.logger,
+                            path = self.cfg['checkpoint'])
             self.model.to(self.device)
             self.inference()
             self.evaluate()

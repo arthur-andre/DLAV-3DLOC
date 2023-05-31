@@ -20,7 +20,7 @@ def compute_centernet3d_loss(input, target, max_objs=50, calibs=None, info=None,
     depth_loss = compute_depth_loss(input, target)
     size3d_loss = compute_size3d_loss(input, target)
     heading_loss = compute_heading_loss(input, target)
-    iou3d_loss = iou_3d_loss(input, target, calibs, cls_mean_size, info)
+    iou3d_loss = iou_3d_loss2(input, target, calibs, cls_mean_size, info)
 
     # statistics
     stats_dict['seg'] = seg_loss.item()
@@ -191,6 +191,145 @@ def iou_3d_loss(input, target, calibs=None, cls_mean_size=None, info=None, max_o
     if len(dets) != 0:
         iou_loss = iou_loss / len(dets)
     return iou_loss
+
+
+def iou_3d_loss2(input, target, calibs=None, cls_mean_size=None, info=None, max_obj=50, threshold=0.2, diou_loss=True):
+    """
+    Compute the Intersection over Union (IoU) of two 3D bounding boxes.
+    
+    Parameters:
+        box1 (numpy.ndarray): Array representing the first 3D bounding box.
+                              The shape should be (7,) where the first 6 elements
+                              represent (x, y, z, w, l, h) and the last element
+                              represents the yaw angle in radians.
+        box2 (numpy.ndarray): Array representing the second 3D bounding box.
+                              The shape should be (7,) with the same format as box1.
+                              
+    Returns:
+        float: The IoU score between the two bounding boxes.
+    """
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    batch, cat, height, width = input['heatmap'].size()
+    topk_inds = target['indices']
+    topk_ys = (topk_inds / width).int().float()
+    topk_xs = (topk_inds % width).int().float()
+
+    
+    
+    inds = topk_inds.view(batch, max_obj)
+    xs = topk_xs.view(batch, max_obj)
+    ys = topk_ys.view(batch, max_obj)
+
+    count_per_sub_bracket = torch.count_nonzero(target['mask_3d'], dim=1)
+    #print("count_per_sub_bracket", count_per_sub_bracket)
+
+    ys = extract_target_from_tensor(ys, target['mask_3d'])
+    xs = extract_target_from_tensor(xs, target['mask_3d'])
+    num_objs = ys.shape[0]
+
+    dets = []
+    if num_objs > 0:
+
+        offset_2d = extract_input_from_tensor(input['offset_2d'], inds, target['mask_3d'])
+        xs2d = xs.view(num_objs, 1) + offset_2d[:, 0:1]
+        ys2d = ys.view(num_objs, 1) + offset_2d[:, 1:2]
+        offset_3d = extract_input_from_tensor(input['offset_3d'], inds, target['mask_3d'])
+        xs3d = xs.view(num_objs, 1) + offset_3d[:, 0:1]
+        ys3d = ys.view(num_objs, 1) + offset_3d[:, 1:2]
+        heading = extract_input_from_tensor(input['heading'], inds, target['mask_3d'])
+        depth_input = extract_input_from_tensor(input['depth'], target['indices'], target['mask_3d'])
+        depth_input, _ = depth_input[:, 0:1], depth_input[:, 1:2]
+        depth_input = 1. / (depth_input.sigmoid() + 1e-6) - 1.
+        depth = depth_input
+
+        sigma = extract_input_from_tensor(input['depth'][:, 1:2, :, :], inds, target['mask_3d'])
+        size_3d = extract_input_from_tensor(input['size_3d'], inds, target['mask_3d'])
+        size_2d = extract_input_from_tensor(input['size_2d'], inds, target['mask_3d'])
+
+        cls_ids = extract_target_from_tensor(target['cls_type'], target['mask_3d'])
+        scores = ys2d
+
+        detections = torch.cat([cls_ids, scores, xs2d, ys2d, size_2d, depth, heading, size_3d, xs3d, ys3d, sigma], dim=1)
+        dets = decode_detections_loss(dets=detections,info=info,calibs=calibs, cls_mean_size=cls_mean_size,threshold=0.2, count= count_per_sub_bracket)
+    
+
+    target_size_3D = extract_target_from_tensor(target['h_w_l'], target['mask_3d'])
+    target_center_3D = extract_target_from_tensor(target['center_box_3D'], target['mask_3d'])
+    target_yaw = extract_target_from_tensor(target['yaw'], target['mask_3d'])
+
+    #iou_loss = 0
+    iou_loss = torch.zeros((1,), requires_grad=True)
+    iou_loss = iou_loss.to(device)
+
+    if len(dets) != 0:
+        for i, (size, center, yaw) in enumerate(zip(target_size_3D, target_center_3D, target_yaw)):
+            box_pred = [dets[i][2][0],dets[i][2][1],dets[i][2][2],dets[i][1][0],dets[i][1][1],dets[i][1][2],dets[i][0]]
+            box_gt = [center[0],center[1],center[2],size[0],size[1],size[2],yaw[0]]
+
+            corners1 = get_box_corners(box_pred)
+            corners2 = get_box_corners(box_gt)
+
+            intersection_volume = compute_intersection_volume(corners1, corners2)
+            box1_volume= compute_bounding_box_volume(corners1)
+            box2_volume= compute_bounding_box_volume(corners2)
+            
+            union_volume = box1_volume + box2_volume - intersection_volume
+            iou = intersection_volume / union_volume
+            iou_loss += torch.ones((1,)).to(device) - iou
+            print(f"iou loss avant diou{iou_loss}")
+            if(diou_loss):
+                iou_loss+=get_distance_centers(box_pred,box_gt)
+                print(f"iou loss apres diou{iou_loss}")
+                print()
+
+
+            
+            
+    if len(dets) != 0:
+        iou_loss = iou_loss / len(dets)
+    return iou_loss
+
+def get_distance_centers(box_pred, box_gt): 
+    """
+Compute the Distance-IoU (DIoU) of two 3D bounding boxes.
+
+Parameters:
+    box1 (torch.Tensor): Bounding box 1. Shape: (7).
+    box2 (torch.Tensor): Bounding box 2. Shape: (7).
+
+Returns:
+    torch.Tensor: The DIoU between the two 3D bounding boxes.
+"""
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    # Compute center coordinates
+    center1 = torch.zeros(3, requires_grad=True)
+    center2 = torch.zeros(3, requires_grad=True)
+
+    center1 = center1.to(device)
+    center2 = center2.to(device)
+
+    center1[0] = box_pred[0]
+    center1[1] = box_pred[1]
+    center1[2] = box_pred[2]
+
+    center2[0] = box_gt[0]
+    center2[1] = box_gt[1]
+    center2[2] = box_gt[2]
+
+    print(f"center1 {center1}")
+    print(f"center2 {center2}")
+
+    # Compute distances
+    center_distance = torch.norm(center1 - center2, p=2)
+    print(f"center_distance {center_distance}")
+    diagonal_length = torch.norm(torch.max(center1, center2), p=2)
+    print(f"diagonal_length {diagonal_length}")
+
+    # Compute DIoU
+    diou_distance = (center_distance ** 2) / (diagonal_length ** 2)
+    print(f"diou_distance {diou_distance}")
+
+    return diou_distance
 
 
 ######################  auxiliary functions #########################

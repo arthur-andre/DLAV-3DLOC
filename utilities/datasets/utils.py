@@ -1,6 +1,8 @@
 ''' some auxiliary functions for all datasets '''
 import numpy as np
 import cv2
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 
 
 num_heading_bin = 12  # hyper param
@@ -122,3 +124,34 @@ def draw_projected_box3d(image, corners3d, color=(255, 255, 255), thickness=1):
         i, j = k, k + 4
         cv2.line(image, (corners3d[i, 0], corners3d[i, 1]), (corners3d[j, 0], corners3d[j, 1]), color, thickness, lineType=cv2.LINE_AA)
     return image
+
+
+def draw_projected_box3d_2(image, corners3d, color=(1, 0, 0), thickness=3):
+    ''' Draw 3d bounding box in image
+    input:
+        image: RGB image
+        corners3d: (8,3) array of vertices (in image plane) for the 3d box in the following order:
+            1 -------- 0
+           /|         /|
+          2 -------- 3 .
+          | |        | |
+          . 5 -------- 4
+          |/         |/
+          6 -------- 7
+
+    '''
+
+    plt.imshow(image)
+
+    for k in range(0, 4):
+        i, j = k, (k + 1) % 4
+        line = Line2D([corners3d[i, 0], corners3d[j, 0]], [corners3d[i, 1], corners3d[j, 1]], color=color, linewidth=thickness)
+        plt.gca().add_line(line)
+        i, j = k + 4, (k + 1) % 4 + 4
+        line = Line2D([corners3d[i, 0], corners3d[j, 0]], [corners3d[i, 1], corners3d[j, 1]], color=color, linewidth=thickness)
+        plt.gca().add_line(line)
+        i, j = k, k + 4
+        line = Line2D([corners3d[i, 0], corners3d[j, 0]], [corners3d[i, 1], corners3d[j, 1]], color=color, linewidth=thickness)
+        plt.gca().add_line(line)
+
+    plt.show()

@@ -18,7 +18,7 @@ import utilities.datasets.kitti.kitti_eval_python.kitti_common as kitti
 class KITTI_Dataset(data.Dataset):
     def __init__(self, split, cfg):
         # basic configuration
-        self.root_dir = cfg.get('root_dir', '/Users/strom/Desktop/monodle/data/KITTI')
+        self.root_dir = cfg.get('root_dir', '/Users/strom/Desktop/monodle/data/KITTI') #change this to the path to your KITTI dataset
         self.split = split
         self.num_classes = 3
         self.max_objs = 50
@@ -41,12 +41,12 @@ class KITTI_Dataset(data.Dataset):
 
 
         # data split loading
-        assert self.split in ['train', 'val', 'trainval', 'test']
+        assert self.split in ['train', 'val', 'trainval', 'test', 'inference']
         self.split_file = os.path.join(self.root_dir + '/' + 'ImageSets' + '/' + self.split + '.txt')
         self.idx_list = [x.strip() for x in open(self.split_file).readlines()]
 
         # path configuration
-        self.data_dir = os.path.join(self.root_dir, 'object', 'testing' if split == 'test' else 'training')
+        self.data_dir = os.path.join(self.root_dir, 'object', 'testing' if split == 'test' else ('testing' if split == 'inference' else 'training'))
         self.image_dir = os.path.join(self.data_dir, 'image_2')
         self.depth_dir = os.path.join(self.data_dir, 'depth')
         self.calib_dir = os.path.join(self.data_dir, 'calib')
@@ -306,6 +306,142 @@ class KITTI_Dataset(data.Dataset):
                 'bbox_downsample_ratio': img_size/features_size}
         return inputs, targets, info
 
+class DLAV_Dataset(data.Dataset):
+    def __init__(self, split, cfg):
+        # basic configuration
+        self.root_dir = cfg.get('root_dir', '/Users/strom/Desktop/monodle/data/DLAV') #change this to the path to your DLAV dataset
+        self.split = split
+        self.num_classes = 3
+        self.max_objs = 50
+        self.class_name = ['Pedestrian', 'Car', 'Cyclist']
+        self.cls2id = {'Pedestrian': 0, 'Car': 1, 'Cyclist': 2}
+        self.resolution = np.array([1280, 384])  # W * H
+        self.use_3d_center = cfg.get('use_3d_center', True)
+        self.writelist = cfg.get('writelist', ['Car'])
+        # anno: use src annotations as GT, proj: use projected 2d bboxes as GT
+        self.bbox2d_type = cfg.get('bbox2d_type', 'anno')
+        assert self.bbox2d_type in ['anno', 'proj']
+        self.meanshape = cfg.get('meanshape', False)
+        self.class_merging = cfg.get('class_merging', False)
+        self.use_dontcare = cfg.get('use_dontcare', False)
+
+        if self.class_merging:
+            self.writelist.extend(['Van', 'Truck'])
+        if self.use_dontcare:
+            self.writelist.extend(['DontCare'])
+
+
+        # data split loading
+        assert self.split in ['train', 'val', 'trainval', 'test', 'inference']
+        self.split_file = os.path.join(self.root_dir + '/' + 'ImageSets' + '/' + self.split + '.txt')
+        self.idx_list = [x.strip() for x in open(self.split_file).readlines()]
+
+        # path configuration
+        self.data_dir = os.path.join(self.root_dir, 'object', 'testing' if split == 'test' else ('testing' if split == 'inference' else 'training'))
+        self.image_dir = os.path.join(self.data_dir, 'scene1')
+        self.depth_dir = os.path.join(self.data_dir, 'depth')
+        self.calib_dir = os.path.join(self.data_dir, 'calib')
+        self.label_dir = os.path.join(self.data_dir, 'label_2')
+
+        # data augmentation configuration
+        self.data_augmentation = True if split in ['train', 'trainval'] else False
+        self.random_flip = cfg.get('random_flip', 0.5)
+        self.random_crop = cfg.get('random_crop', 0.5)
+        self.scale = cfg.get('scale', 0.4)
+        self.shift = cfg.get('shift', 0.1)
+
+        # statistics
+        self.mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+        self.std  = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+        self.cls_mean_size = np.array([[1.76255119, 0.66068622, 0.84422524],
+                                       [1.52563191, 1.62856739, 3.52588311],
+                                       [1.73698127, 0.59706367, 1.76282397]], dtype=np.float32)  # H*W*L
+        if not self.meanshape:
+            self.cls_mean_size = np.zeros_like(self.cls_mean_size, dtype=np.float32)
+
+        # others
+        self.downsample = 4
+
+
+
+    def get_image(self, idx):
+        img_file = os.path.join(self.image_dir, 'scene1_%05d.png' % idx)
+        assert os.path.exists(img_file)
+        return Image.open(img_file)
+
+
+    def get_label(self, idx):
+        label_file = os.path.join(self.label_dir, 'scene1_%05d.txt' % idx)
+        assert os.path.exists(label_file)
+        return get_objects_from_label(label_file)
+
+
+    def get_calib(self, idx):
+        #get a calibration file from KITTI dataset because DLAV does not have calibration files yet
+        calib_file = '/Users/strom/Desktop/monodle/data/KITTI/object/training/calib/000000.txt'
+        assert os.path.exists(calib_file)
+        return Calibration(calib_file)
+
+    def eval(self, results_dir, logger):
+        logger.info("==> Loading detections and GTs...")
+        img_ids = [int(id) for id in self.idx_list]
+        dt_annos = kitti.get_label_annos(results_dir)
+        gt_annos = kitti.get_label_annos(self.label_dir, img_ids)
+
+        test_id = {'Car': 0, 'Pedestrian':1, 'Cyclist': 2}
+
+        logger.info('==> Evaluating (official) ...')
+        for category in self.writelist:
+            results_str, results_dict = get_official_eval_result(gt_annos, dt_annos, test_id[category])
+            logger.info(results_str)
+
+
+    def __len__(self):
+        return self.idx_list.__len__()
+
+
+    def __getitem__(self, item):
+        #  ============================   get inputs   ===========================
+        index = int(self.idx_list[item])  # index mapping, get real data id
+        # image loading
+        img = self.get_image(index)
+        img = img.crop((0, 50, 1280, 50 + 384))
+        img_size = np.array(img.size)
+        features_size = self.resolution // self.downsample    # W * H
+
+        # data augmentation for image
+        center = np.array(img_size) / 2
+        aug_scale, crop_size = 1.0, img_size
+        random_crop_flag, random_flip_flag = False, False
+        if self.data_augmentation:
+            if np.random.random() < self.random_flip:
+                random_flip_flag = True
+                img = img.transpose(Image.FLIP_LEFT_RIGHT)
+
+            if np.random.random() < self.random_crop:
+                random_crop_flag = True
+                aug_scale = np.clip(np.random.randn() * self.scale + 1, 1 - self.scale, 1 + self.scale)
+                crop_size = img_size * aug_scale
+                center[0] += img_size[0] * np.clip(np.random.randn() * self.shift, -2 * self.shift, 2 * self.shift)
+                center[1] += img_size[1] * np.clip(np.random.randn() * self.shift, -2 * self.shift, 2 * self.shift)
+
+        # add affine transformation for 2d images.
+        trans, trans_inv = get_affine_transform(center, crop_size, 0, self.resolution, inv=1)
+        img = img.transform(tuple(self.resolution.tolist()),
+                            method=Image.AFFINE,
+                            data=tuple(trans_inv.reshape(-1).tolist()),
+                            resample=Image.BILINEAR)
+        # image encoding
+        img = np.array(img).astype(np.float32) / 255.0
+        img = (img - self.mean) / self.std
+        img = img.transpose(2, 0, 1)  # C * H * W
+
+        info = {'img_id': index,
+                'img_size': img_size,
+                'bbox_downsample_ratio': img_size/features_size}
+
+        if self.split == 'test':
+            return img, img, info   # img / placeholder(fake label) / info
 
 
 
