@@ -132,7 +132,6 @@ def iou_3d_loss(input, target, calibs=None, cls_mean_size=None, info=None, max_o
     ys = topk_ys.view(batch, max_obj)
 
     count_per_sub_bracket = torch.count_nonzero(target['mask_3d'], dim=1)
-    #print("count_per_sub_bracket", count_per_sub_bracket)
 
     ys = extract_target_from_tensor(ys, target['mask_3d'])
     xs = extract_target_from_tensor(xs, target['mask_3d'])
@@ -221,7 +220,6 @@ def iou_3d_loss2(input, target, calibs=None, cls_mean_size=None, info=None, max_
     ys = topk_ys.view(batch, max_obj)
 
     count_per_sub_bracket = torch.count_nonzero(target['mask_3d'], dim=1)
-    #print("count_per_sub_bracket", count_per_sub_bracket)
 
     ys = extract_target_from_tensor(ys, target['mask_3d'])
     xs = extract_target_from_tensor(xs, target['mask_3d'])
@@ -276,11 +274,8 @@ def iou_3d_loss2(input, target, calibs=None, cls_mean_size=None, info=None, max_
             union_volume = box1_volume + box2_volume - intersection_volume
             iou = intersection_volume / union_volume
             iou_loss += torch.ones((1,)).to(device) - iou
-            print(f"iou loss avant diou{iou_loss}")
             if(diou_loss):
                 iou_loss+=get_distance_centers(box_pred,box_gt)
-                print(f"iou loss apres diou{iou_loss}")
-                print()
 
 
             
@@ -316,18 +311,12 @@ Returns:
     center2[1] = box_gt[1]
     center2[2] = box_gt[2]
 
-    print(f"center1 {center1}")
-    print(f"center2 {center2}")
-
     # Compute distances
     center_distance = torch.norm(center1 - center2, p=2)
-    print(f"center_distance {center_distance}")
     diagonal_length = torch.norm(torch.max(center1, center2), p=2)
-    print(f"diagonal_length {diagonal_length}")
 
     # Compute DIoU
     diou_distance = (center_distance ** 2) / (diagonal_length ** 2)
-    print(f"diou_distance {diou_distance}")
 
     return diou_distance
 

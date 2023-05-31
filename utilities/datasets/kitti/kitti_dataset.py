@@ -377,10 +377,11 @@ class DLAV_Dataset(data.Dataset):
 
 
     def get_calib(self, idx):
-        #get a calibration file from KITTI dataset because DLAV does not have calibration files yet
-        calib_file = '/Users/strom/Desktop/monodle/data/KITTI/object/training/calib/000000.txt'
+        #get a random calibration file from KITTI dataset because DLAV does not have calibration files yet
+        calib_file = '/Users/strom/Desktop/monodle/data/KITTI/object/training/calib/000028.txt'
         assert os.path.exists(calib_file)
-        return Calibration(calib_file)
+        calib =Calibration(calib_file)
+        return calib
 
     def eval(self, results_dir, logger):
         logger.info("==> Loading detections and GTs...")

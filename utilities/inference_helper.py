@@ -6,6 +6,8 @@ import numpy as np
 import matplotlib.image as mpimg
 from PIL import Image
 import random
+import time
+
 
 import cv2
 from utilities.datasets.kitti.kitti_utils import Calibration, Object3d
@@ -63,6 +65,8 @@ class Inference(object):
         self.model.eval()
         results = {}
         progress_bar = tqdm.tqdm(total=self.number_inference, leave=True, desc='Evaluation Progress')
+        # Start the timer
+        start_time = time.time()
         for batch_idx, (inputs, target, info) in enumerate(self.dataloader):
             if batch_idx < self.number_inference:
                 # load evaluation data and move data to GPU.
@@ -87,7 +91,13 @@ class Inference(object):
                 results.update(dets)
                 progress_bar.update()
             else:
+                
                 break
+        # End the timer
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        # Print the elapsed time
+        print(f"Elapsed time for {self.number_inference} inferences: {elapsed_time} seconds")
 
         progress_bar.close()
 
@@ -124,6 +134,9 @@ class Inference(object):
         for i in range(self.number_inference):
 
             fig, axs = plt.subplots(1, 2, figsize=(12, 4))
+            for ax in axs.flatten():
+                ax.axis('off')
+
             prediction_path = "/Users/strom/Desktop/monodle/outputs/data_inference/00{:04d}".format(self.id_imgs[i][0])+ '.txt'  #change absolute path to yours
             image_path = "/Users/strom/Desktop/monodle/data/KITTI/object/testing/image_2/00{:04d}".format(self.id_imgs[i][0])  +".png" 
 
