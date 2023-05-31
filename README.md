@@ -124,6 +124,11 @@ Please download [KITTI dataset](http://www.cvlibs.net/datasets/kitti/eval_object
         |testing/
           |calib/
           |image_2/
+    |DLAV/
+      |ImageSets/ [already provided in this repo]
+      |object/		
+           |testing/
+                |scene1/
 ```
 
 
