@@ -144,7 +144,7 @@ We then analysed the different models and loss functions, combined in different 
 - A good compromise is to use the model with pretrained backbone, and the DIOU loss. This model still achieves close results in 3D AP as the baseline, and beat the baseline on 2D bounding box and Orientation APs. 
 - If we would be ranked on the [Monocular 3D Object Detection on KITTI Cars Moderate](https://paperswithcode.com/sota/monocular-3d-object-detection-on-kitti-cars), we would be 4th. 
 
-# Checkpoints 
+### Checkpoints 
 You can retrieve the different checkpoints for each experiment on the following [Google Drive](https://drive.google.com/drive/folders/1sO54olD8GK0d1BrigqETHf8zpZpr84WS?usp=sharing)
 
 ## Conclusion
