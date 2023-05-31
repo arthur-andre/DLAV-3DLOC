@@ -1,5 +1,5 @@
 # DLAV-3DLOC
-Project on 3D vehicle localization for the course Deep Learning for Autonomous Vehicles. 
+Project on 3D vehicle localization for the course Deep Learning for Autonomous Vehicles, made as part of the ["Deep Learning for Autonomous Vehicle"](https://edu.epfl.ch/coursebook/en/deep-learning-for-autonomous-vehicles-CIVIL-459) course from Pr. Alahi.  
 
 <a href="https://www.tri.global/" target="_blank">
  <img align="right" src="/media/figs/tri-logo.png" width="20%"/>
@@ -128,16 +128,25 @@ Please download [KITTI dataset](http://www.cvlibs.net/datasets/kitti/eval_object
 
 
 ## Results
+First, from our runs, we've plotted the different IOU losses and analysed them. 
+![](media/loss_curves.png)
+- The simple IOU loss function does not weaken. It doesn't lose variance either, giving losses at 1 and zero even at the end of training. The model has therefore not learned from this loss function.  
+- To give a slope to the loss function, we add a normalized distance between the boxes. This has the great effect of reducing the loss function, bounding it with a lower value and variance at the end of the training. The model seems to have learnt from this loss function.
+- Adding the aspect ratio, gives the model more variance, making the learning more difficult.
+- In general, losses seems to still be able to reduce more. 
 
+We then analysed the different models and loss functions, combined in different configurations. To measure performance, we used the kitti metrics described above. 
 ![](media/resultstotal.JPG)
+
+- The DIOU loss function, added to the baseline model, beat the other models with respect to BEV and 2D bounding box prediction scores.
+- The pretrained backbone, loaded in the baseline model, beat the others models at 3D box prediction score, which is the most important score, and is the one noted in the original paper. This is the proof that improving depth estimation is the most efficient way of enhancing 3D AP. On the other hand, all the other metrics are lowered. 
+- A good compromise is to use the model with pretrained backbone, and the DIOU loss. This model still achieves close results in 3D AP as the baseline, and beat the baseline on 2D bounding box and Orientation APs. 
+- If we would be ranked on the [Monocular 3D Object Detection on KITTI Cars Moderate](https://paperswithcode.com/sota/monocular-3d-object-detection-on-kitti-cars), we would be 4th. 
 
 ## Conclusion
 
-In conclusion, this project...
-
-- Summary of findings
-- Future work
-- ...
+In conclusion, we improved the performance of our baseline model, particularly on BBOX and AOS scores, while preserving our performance on 3D prediction.  This was achieved by adding an IOU loss function including distance, and using a backbone pre-trained on lidar and RGB pairs. 
+We believe that the results obtained can be improved with longer training runs, which is perhaps how we'll see the effect of the IOU. 
 
 ## References
 
